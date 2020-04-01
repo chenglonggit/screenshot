@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <link rel="stylesheet" href="https://a.amap.com/jsapi_demos/static/demo-center/css/demo-center.css" />
+    <title>地图显示</title>
+    <style>
+        html,
+        body,
+        #container {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+<button style="position: absolute;left: 0;top: 0;" onclick="pdfDown()">下载</button>
+<!-- 加载地图JSAPI脚本 -->
+<script src="https://webapi.amap.com/maps?v=1.4.15&key=您申请的key值"></script>
+<script src="http://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<script src="https://cdn.bootcss.com/jspdf/1.5.3/jspdf.min.js"></script>
+<script>
+
+    //创建自定义切片图层，指定 getTileUrl 属性
+    var googleLayer = new AMap.TileLayer({
+        getTileUrl: 'https://mt.google.cn/vt/lyrs=y@142&hl=en&gl=cn&x=[x]&y=[y]&z=[z]&s=Galil',
+        zIndex:2
+    });
+    var map = new AMap.Map('container', {
+        resizeEnable: true, //是否监控地图容器尺寸变化
+        zoom:11, //初始化地图层级
+        center: [116.397428, 39.90923] ,//初始化地图中心点
+        // layers:[googleLayer]
+        })
+    //pdf下载
+   function pdfDown(){
+
+        var element = document.getElementById('container');    // 这个dom元素是要导出pdf的div容器，即要生成PDF的div
+        var w;    // 获得该容器的宽
+        var h;    // 获得该容器的高
+        //因为我是两种分布情况，故而有了下边的if、else，如果只有一种用else里的即可
+        //
+        let DomBounding=element.getBoundingClientRect();
+        w=DomBounding.width;
+        h=DomBounding.height;
+        var offsetTop = 0;    // 获得该容器到文档顶部的距离
+        var offsetLeft = DomBounding.left;    // 获得该容器到文档最左的距离
+
+
+        var canvas = document.createElement("canvas");
+        canvas.width = w ;    // 将画布宽&&高放大两倍
+        canvas.height = h ;
+        var context = canvas.getContext("2d");
+        var scale = 0.98;
+        context.scale(1, 1);
+        context.translate(-offsetLeft, -offsetTop);
+
+        var opts = {
+            scale: scale,
+            canvas: canvas,
+            width: w,
+            height: h,
+            useCORS: true,
+            background: '#ffffff'
+        }
+
+        html2canvas(element, opts).then(function (canvas) {
+
+            var contentWidth = canvas.width;
+            var contentHeight = canvas.height;
+            //一页pdf显示html页面生成的canvas高度;
+            var pageHeight = contentWidth / 592.28 * 841.89;
+            //未生成pdf的html页面高度
+            var leftHeight = contentHeight;
+            //页面偏移
+            var position = 0;
+            //a4纸的尺寸[595.28,841.89]，html页面生成的canvas在pdf中图片的宽高
+            var imgWidth = 595.28*1.01;
+            var imgHeight = 592.28 / contentWidth * contentHeight*1.01;
+
+            var pageData = canvas.toDataURL('image/jpeg', 1.0);
+
+            var pdf = new jsPDF('', 'pt', 'a4');
+
+            //有两个高度需要区分，一个是html页面的实际高度，和生成pdf的页面高度(841.89)
+            //当内容未超过pdf一页显示的范围，无需分页
+            if (leftHeight < pageHeight) {
+                pdf.addImage(pageData, 'JPEG', 0, 0, imgWidth, imgHeight);
+            } else {    // 分页
+                while (leftHeight > 0) {
+                    pdf.addImage(pageData, 'JPEG', 0, position, imgWidth, imgHeight)
+                    leftHeight -= pageHeight;
+                    position -= 841.89;
+                    //避免添加空白页
+                    if (leftHeight > 0) {
+                        pdf.addPage();
+                    }
+                }
+            }
+            pdf.save('content.pdf');
+        })
+    }
+
+
+
+    googleLayer.setMap(map);
+</script>
+</body>
+</html>
